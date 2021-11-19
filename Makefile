@@ -60,6 +60,9 @@ lint-incr:
 	tools/verify_headers.py qiskit test tools examples
 	tools/find_optional_imports.py
 
+mypy:
+	mypy qiskit/algorithms/optimizers/spsa.py --follow-import=skip
+
 style:
 	black --check qiskit test tools examples setup.py
 

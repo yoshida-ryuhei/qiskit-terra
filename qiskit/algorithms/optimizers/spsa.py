@@ -15,7 +15,7 @@
 This implementation allows both, standard first-order as well as second-order SPSA.
 """
 
-from typing import Iterator, Optional, Union, Callable, Tuple, Dict, List, Any
+from typing import Iterator, Optional, Sequence, Union, Callable, Tuple, Dict, List, Any
 import logging
 import warnings
 from time import time
@@ -132,8 +132,8 @@ class SPSA(Optimizer):
         blocking: bool = False,
         allowed_increase: Optional[float] = None,
         trust_region: bool = False,
-        learning_rate: Optional[Union[float, np.array, Callable[[], Iterator]]] = None,
-        perturbation: Optional[Union[float, np.array, Callable[[], Iterator]]] = None,
+        learning_rate: Optional[Union[float, np.ndarray, Callable[[], Iterator]]] = None,
+        perturbation: Optional[Union[float, np.ndarray, Callable[[], Iterator]]] = None,
         last_avg: int = 1,
         resamplings: Union[int, Dict[int, int]] = 1,
         perturbation_dims: Optional[int] = None,
@@ -288,7 +288,7 @@ class SPSA(Optimizer):
         gamma: float = 0.101,
         modelspace: bool = False,
         max_evals_grouped: int = 1,
-    ) -> Tuple[Iterator[float], Iterator[float]]:
+    ) -> Tuple[Callable[[], Iterator[float]], Callable[[], Iterator[float]]]:
         r"""Calibrate SPSA parameters with a powerseries as learning rate and perturbation coeffs.
 
         The powerseries are:
@@ -410,7 +410,14 @@ class SPSA(Optimizer):
             "termination_checker": self.termination_checker,
         }
 
-    def _point_sample(self, loss, x, eps, delta1, delta2):
+    def _point_sample(
+        self,
+        loss,
+        x: POINT,
+        eps: float,
+        delta1: Union[int, np.ndarray],
+        delta2: Optional[Union[int, np.ndarray]],
+    ):
         """A single sample of the gradient at position ``x`` in direction ``delta``."""
         # points to evaluate
         points = [x + eps * delta1, x - eps * delta1]
@@ -437,7 +444,7 @@ class SPSA(Optimizer):
 
         return np.mean(values), gradient_sample, hessian_sample
 
-    def _point_estimate(self, loss, x, eps, num_samples):
+    def _point_estimate(self, loss, x, eps, num_samples: int) -> Tuple[Any, np.ndarray, np.ndarray]:
         """The gradient estimate at point x."""
         # set up variables to store averages
         value_estimate = 0
@@ -475,8 +482,17 @@ class SPSA(Optimizer):
             hessian_estimate / num_samples,
         )
 
-    def _compute_update(self, loss, x, k, eps, lse_solver):
-        # compute the perturbations
+    def _compute_update(
+        self,
+        loss: Callable[[POINT], float],
+        x: np.ndarray,
+        k: int,
+        eps,
+        lse_solver: Callable[[np.ndarray, np.ndarray], np.ndarray],
+    ):
+        """compute the perturbations
+        calculate the gradient vector and the Hessian matrix.
+        """
         if isinstance(self.resamplings, dict):
             num_samples = self.resamplings.get(k, 1)
         else:
@@ -487,14 +503,14 @@ class SPSA(Optimizer):
 
         # precondition gradient with inverse Hessian, if specified
         if self.second_order:
-            smoothed = k / (k + 1) * self._smoothed_hessian + 1 / (k + 1) * hessian
+            smoothed: np.ndarray = k / (k + 1) * self._smoothed_hessian + 1 / (k + 1) * hessian
             self._smoothed_hessian = smoothed
 
             if k > self.hessian_delay:
                 spd_hessian = _make_spd(smoothed, self.regularization)
 
                 # solve for the gradient update
-                gradient = np.real(lse_solver(spd_hessian, gradient))
+                gradient: np.ndarray = np.real(lse_solver(spd_hessian, gradient))
 
         return value, gradient
 
@@ -653,7 +669,7 @@ class SPSA(Optimizer):
         return result.x, result.fun, result.nfev
 
 
-def bernoulli_perturbation(dim, perturbation_dims=None):
+def bernoulli_perturbation(dim, perturbation_dims=None) -> Union[int, np.ndarray]:
     """Get a Bernoulli random perturbation."""
     if perturbation_dims is None:
         return 1 - 2 * algorithm_globals.random.binomial(1, 0.5, size=dim)
@@ -684,7 +700,7 @@ def constant(eta=0.01):
         yield eta
 
 
-def _batch_evaluate(function, points, max_evals_grouped):
+def _batch_evaluate(function, points: Union[np.ndarray, List[POINT]], max_evals_grouped: int):
     # if the function cannot handle lists of points as input, cover this case immediately
     if max_evals_grouped == 1:
         # support functions with multiple arguments where the points are given in a tuple
@@ -709,13 +725,17 @@ def _batch_evaluate(function, points, max_evals_grouped):
     return results
 
 
-def _make_spd(matrix, bias=0.01):
+def _make_spd(matrix: np.ndarray, bias: float = 0.01) -> np.ndarray:
+    """make symmetric positive definete(SPD) matrix"""
     identity = np.identity(matrix.shape[0])
     psd = scipy.linalg.sqrtm(matrix.dot(matrix))
     return psd + bias * identity
 
 
-def _validate_pert_and_learningrate(perturbation, learning_rate):
+def _validate_pert_and_learningrate(
+    perturbation: Optional[Union[float, list, np.ndarray, Callable[[], Iterator[float]]]],
+    learning_rate: Optional[Union[float, list, np.ndarray, Callable[[], Iterator[float]]]],
+) -> Tuple[Callable[[], Iterator[float]], Callable[[], Iterator[float]]]:
     if learning_rate is None or perturbation is None:
         raise ValueError("If one of learning rate or perturbation is set, both must be set.")
 

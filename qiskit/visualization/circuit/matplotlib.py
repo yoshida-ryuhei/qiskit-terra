@@ -282,6 +282,7 @@ class MatplotlibDrawer:
             is_user_ax = False
             mpl_figure = plt.figure()
             mpl_figure.patch.set_facecolor(color=self._style["bg"])
+            mpl_figure.patch.set_alpha(0)
             self._ax = mpl_figure.add_subplot(111)
         else:
             is_user_ax = True

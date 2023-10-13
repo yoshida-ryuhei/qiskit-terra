@@ -24,6 +24,7 @@ Operators
 .. autosummary::
    :toctree: ../stubs/
 
+   BaseOperator
    Operator
    Pauli
    Clifford
@@ -126,6 +127,7 @@ Synthesis
 from __future__ import annotations
 from .analysis import hellinger_distance, hellinger_fidelity, Z2Symmetries
 from .operators import (
+    BaseOperator,
     Clifford,
     Operator,
     Pauli,

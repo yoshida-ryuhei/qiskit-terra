@@ -16,6 +16,7 @@ from __future__ import annotations
 from .channel import PTM, Chi, Choi, Kraus, Stinespring, SuperOp
 from .dihedral import CNOTDihedral
 from .measures import average_gate_fidelity, diamond_norm, gate_error, process_fidelity
+from .base_operator import BaseOperator
 from .operator import Operator
 from .scalar_op import ScalarOp
 from .symplectic import (

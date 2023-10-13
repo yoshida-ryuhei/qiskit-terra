@@ -14,6 +14,7 @@
 Abstract base classes for primitives module.
 """
 
+from .base_primitive import BasePrimitive
 from .base_estimator import BaseEstimator
 from .base_sampler import BaseSampler
 from .estimator_result import EstimatorResult

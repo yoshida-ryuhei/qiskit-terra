@@ -28,6 +28,7 @@ Estimator
 .. autosummary::
    :toctree: ../stubs/
 
+   BasePrimitive
    BaseEstimator
    Estimator
    BackendEstimator
@@ -52,6 +53,7 @@ Results
    SamplerResult
 """
 
+from .base import BasePrimitive
 from .base import BaseEstimator
 from .base import BaseSampler
 from .backend_estimator import BackendEstimator
